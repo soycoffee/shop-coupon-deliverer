@@ -11,3 +11,19 @@ def create_coupon(image, image_name):
         'image_s3_key': image_object.key,
     })
 
+
+def read_coupon():
+    pass
+
+
+def update_coupon():
+    pass
+
+
+def delete_coupon():
+    pass
+
+
+def query_coupons():
+    pass
+

@@ -1,10 +1,6 @@
 import unittest
 from unittest import mock
-from create_coupon import create_coupon
-from read_coupon import read_coupon
-from update_coupon import update_coupon
-from delete_coupon import delete_coupon
-from query_coupons import query_coupons
+from coupon_action import *
 
 
 def lambda_handler(event, context):
