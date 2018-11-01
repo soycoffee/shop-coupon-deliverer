@@ -6,12 +6,16 @@ from dynamodb_coupons import dynamodb_put_coupon, dynamodb_get_coupon
 from s3_coupons import s3_put_coupon_image, s3_generate_coupon_url
 
 
-def create_coupon(image, image_name):
+def create_coupon(title, description, image, image_name, qr_code_image, qr_code_image_name):
     image_object = s3_put_coupon_image(image, image_name)
+    qr_code_image_object = s3_put_coupon_image(qr_code_image, qr_code_image_name)
     _id = str(dynamodb_atomic_count('coupon_id')).zfill(7)
     return dynamodb_put_coupon({
         'id': _id,
+        'title': title,
+        'description': description,
         'image_s3_key': image_object.key,
+        'qr_code_image_s3_key': qr_code_image_object.key,
     })
 
 
@@ -47,7 +51,14 @@ class Test(unittest.TestCase):
         mock_s3_put_coupon_image.return_value = mock_image_object
         mock_dynamodb_atomic_count.return_value = 1
         mock_dynamodb_put_coupon.return_value = 'coupon'
-        response = create_coupon('image', 'image_name')
+        response = create_coupon(
+            'title',
+            'description',
+            'image',
+            'image_name',
+            'qr_code_image',
+            'qr_code_image_name',
+        )
         self.assertEqual('coupon', response)
         mock_s3_put_coupon_image.assert_called_once_with('image', 'image_name')
         mock_dynamodb_atomic_count.assert_called_once_with('coupon_id')

@@ -39,8 +39,12 @@ def _match_query_coupons(event):
 
 def _call_create_coupon(event):
     return create_coupon(
+        event['body']['title'],
+        event['body']['description'],
         event['body']['image'],
         event['body']['image_name'],
+        event['body']['qr_code_image'],
+        event['body']['qr_code_image_name'],
     )
 
 
@@ -70,12 +74,23 @@ class Test(unittest.TestCase):
         response = lambda_handler({
             'httpMethod': 'POST',
             'body': {
+                'title': 'title',
+                'description': 'description',
                 'image': 'image',
                 'image_name': 'image_name',
+                'qr_code_image': 'qr_code_image',
+                'qr_code_image_name': 'qr_code_image_name',
             },
         }, {})
         self.assertEqual('create_coupon', response)
-        mock_create_coupon.assert_called_once_with('image', 'image_name')
+        mock_create_coupon.assert_called_once_with(
+            'title',
+            'description',
+            'image',
+            'image_name',
+            'qr_code_image',
+            'qr_code_image_name',
+        )
 
     @mock.patch('lambda_handler.read_coupon')
     def test_read_coupon(self, mock_read_coupon):
