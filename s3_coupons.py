@@ -14,10 +14,26 @@ def s3_put_coupon_image(encoded_image, image_name):
     )
 
 
+def s3_generate_coupon_url(key):
+    return _s3_client().generate_presigned_url(
+        ClientMethod='get_object',
+        Params={
+            'Bucket': 'shop-coupons-deliverer.coupons',
+            'Key': key,
+        }
+    )
+
+
 def _build_s3_key(directory, name):
     return f"{directory}/{str(uuid.uuid4())}/{name}"
 
 
 @functools.lru_cache()
+def _s3_client():
+    return boto3.client('s3')
+
+
+@functools.lru_cache()
 def _s3_coupons_bucket():
     return boto3.resource('s3').Bucket('shop-coupons-deliverer.coupons')
+
