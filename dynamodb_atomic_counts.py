@@ -18,4 +18,4 @@ def dynamodb_atomic_count(key):
 
 @functools.lru_cache()
 def _dynamodb_atomic_counts_table():
-    return boto3.resource('dynamodb').Table('sequences')
+    return boto3.resource('dynamodb').Table('atomic_counts')
