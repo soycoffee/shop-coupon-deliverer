@@ -2,7 +2,7 @@ import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 from dynamodb_atomic_counts import dynamodb_atomic_count
-from dynamodb_coupons import dynamodb_put_coupon
+from dynamodb_coupons import dynamodb_put_coupon, dynamodb_get_coupon
 from s3_coupon_image import s3_put_coupon_image
 
 
@@ -15,8 +15,8 @@ def create_coupon(image, image_name):
     })
 
 
-def read_coupon():
-    pass
+def read_coupon(_id):
+    return dynamodb_get_coupon(_id)
 
 
 def update_coupon():
@@ -50,3 +50,11 @@ class Test(unittest.TestCase):
             'id': '0000001',
             'image_s3_key': 'image_s3_key',
         })
+
+    @mock.patch('coupon_action.dynamodb_get_coupon')
+    def test_read_coupon(self, mock_dynamodb_get_coupon):
+        mock_dynamodb_get_coupon.return_value = 'coupon'
+        response = read_coupon('id')
+        self.assertEqual('coupon', response)
+        mock_dynamodb_get_coupon.assert_called_once_with('id')
+

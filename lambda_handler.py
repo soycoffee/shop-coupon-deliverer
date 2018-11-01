@@ -1,5 +1,6 @@
+import unittest
 from unittest import mock
-from coupon_action import *
+from coupon_action import create_coupon, read_coupon, update_coupon, delete_coupon, query_coupons
 
 
 def lambda_handler(event, context):
@@ -44,7 +45,9 @@ def _call_create_coupon(event):
 
 
 def _call_read_coupon(event):
-    return read_coupon()
+    return read_coupon(
+        event['pathParameters']['id'],
+    )
 
 
 def _call_update_coupon(event):
@@ -80,11 +83,11 @@ class Test(unittest.TestCase):
         response = lambda_handler({
             'httpMethod': 'GET',
             'pathParameters': {
-                'id': 1,
+                'id': 'id',
             },
         }, {})
         self.assertEqual('read_coupon', response)
-        mock_read_coupon.assert_called_once_with()
+        mock_read_coupon.assert_called_once_with('id')
 
     @mock.patch('lambda_handler.update_coupon')
     def test_update_coupon(self, mock_update_coupon):
