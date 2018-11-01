@@ -17,6 +17,8 @@ def s3_put_coupon_image(encoded_image, image_name):
 def s3_generate_coupon_url(key):
     return _s3_client().generate_presigned_url(
         ClientMethod='get_object',
+        HttpMethod='GET',
+        ExpiresIn=3600,
         Params={
             'Bucket': 'shop-coupons-deliverer.coupons',
             'Key': key,
