@@ -1,4 +1,3 @@
-import unittest
 from unittest import mock
 from coupon_action import *
 
