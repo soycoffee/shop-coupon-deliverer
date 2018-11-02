@@ -29,8 +29,17 @@ def read_coupon(_id):
     }
 
 
-def update_coupon():
-    pass
+def update_coupon(_id, title, description, image, image_name, qr_code_image, qr_code_image_name):
+    image_object = s3_put_coupon_image(image, image_name)
+    qr_code_image_object = s3_put_coupon_image(qr_code_image, qr_code_image_name)
+    _id = str(dynamodb_atomic_count('coupon_id')).zfill(7)
+    return dynamodb_put_coupon({
+        'id': _id,
+        'title': title,
+        'description': description,
+        'image_s3_key': image_object.key,
+        'qr_code_image_s3_key': qr_code_image_object.key,
+    })
 
 
 def delete_coupon():

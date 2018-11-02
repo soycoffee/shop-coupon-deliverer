@@ -1,11 +1,13 @@
 import functools
 
 import boto3
+from boto3.dynamodb.conditions import Attr
 
 
 def dynamodb_put_coupon(item):
     return _dynamodb_coupons_table().put_item(
         Item=item,
+        ConditionExpression=Attr('title').lte(20),
     )
 
 
