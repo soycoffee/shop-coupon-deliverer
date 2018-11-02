@@ -1,6 +1,9 @@
 import unittest
+
 from unittest import mock
 from coupon_action import create_coupon, read_coupon, update_coupon, delete_coupon, query_coupons
+from request_validation import validate_exists_keys, validate_str_values
+from error_response import build_bad_request_response
 
 
 def lambda_handler(event, context):
@@ -38,6 +41,12 @@ def _match_query_coupons(event):
 
 
 def _call_create_coupon(event):
+    if not validate_exists_keys(event['body'], 'title', 'description', 'image', 'image_name', 'qr_code_image',
+                                'qr_code_image_name'):
+        return build_bad_request_response('not_exists_key')
+    if not validate_str_values(event['body'], 'title', 'description', 'image', 'image_name', 'qr_code_image',
+                               'qr_code_image_name'):
+        return build_bad_request_response('invalid_type')
     return create_coupon(
         event['body']['title'],
         event['body']['description'],
@@ -49,6 +58,10 @@ def _call_create_coupon(event):
 
 
 def _call_read_coupon(event):
+    if not validate_exists_keys(event['pathParameters'], 'id'):
+        return build_bad_request_response('not_exists_id')
+    if not validate_str_values(event['pathParameters'], 'id'):
+        return build_bad_request_response('id_invalid_type')
     return read_coupon(
         event['pathParameters']['id'],
     )
@@ -92,6 +105,39 @@ class Test(unittest.TestCase):
             'qr_code_image_name',
         )
 
+    def test_create_coupon_bad_request(self):
+        self.assertEqual(
+            {
+                'statusCode': 400,
+                'body': {
+                    'message': 'not_exists_key',
+                },
+            },
+            lambda_handler({
+                'httpMethod': 'POST',
+                'body': {},
+            }, {}),
+        )
+        self.assertEqual(
+            {
+                'statusCode': 400,
+                'body': {
+                    'message': 'invalid_type',
+                },
+            },
+            lambda_handler({
+                'httpMethod': 'POST',
+                'body': {
+                    'title': None,
+                    'description': '',
+                    'image': '',
+                    'image_name': '',
+                    'qr_code_image': '',
+                    'qr_code_image_name': '',
+                },
+            }, {}),
+        )
+
     @mock.patch('lambda_handler.read_coupon')
     def test_read_coupon(self, mock_read_coupon):
         mock_read_coupon.return_value = 'read_coupon'
@@ -103,6 +149,39 @@ class Test(unittest.TestCase):
         }, {})
         self.assertEqual('read_coupon', response)
         mock_read_coupon.assert_called_once_with('id')
+
+    def test_create_coupon_bad_request(self):
+        self.assertEqual(
+            {
+                'statusCode': 400,
+                'body': {
+                    'message': 'not_exists_key',
+                },
+            },
+            lambda_handler({
+                'httpMethod': 'POST',
+                'body': {},
+            }, {}),
+        )
+        self.assertEqual(
+            {
+                'statusCode': 400,
+                'body': {
+                    'message': 'invalid_type',
+                },
+            },
+            lambda_handler({
+                'httpMethod': 'POST',
+                'body': {
+                    'title': None,
+                    'description': '',
+                    'image': '',
+                    'image_name': '',
+                    'qr_code_image': '',
+                    'qr_code_image_name': '',
+                },
+            }, {}),
+        )
 
     @mock.patch('lambda_handler.update_coupon')
     def test_update_coupon(self, mock_update_coupon):
