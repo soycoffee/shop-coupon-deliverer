@@ -3,7 +3,7 @@ import unittest
 from unittest import mock
 from coupon_action import create_coupon, read_coupon, update_coupon, delete_coupon, query_coupons
 from request_validation import validate_exists_keys, validate_str_values
-from error_response import build_bad_request_response
+from error_response import build_bad_request_response, build_not_found_response
 
 
 def lambda_handler(event, context):
@@ -17,6 +17,7 @@ def _route():
         (_match_update_coupon, _call_update_coupon),
         (_match_delete_coupon, _call_delete_coupon),
         (_match_query_coupons, _call_query_coupons),
+        (lambda _: True, lambda _: build_not_found_response('route_not_found'))
     )
 
 
@@ -25,15 +26,15 @@ def _match_create_coupon(event):
 
 
 def _match_read_coupon(event):
-    return event['httpMethod'] == 'GET' and 'id' in event['pathParameters']
+    return event['httpMethod'] == 'GET' and _has_valid_path_id(event)
 
 
 def _match_update_coupon(event):
-    return event['httpMethod'] == 'PUT' and 'id' in event['pathParameters']
+    return event['httpMethod'] == 'PUT' and _has_valid_path_id(event)
 
 
 def _match_delete_coupon(event):
-    return event['httpMethod'] == 'DELETE' and 'id' in event['pathParameters']
+    return event['httpMethod'] == 'DELETE' and _has_valid_path_id(event)
 
 
 def _match_query_coupons(event):
@@ -58,8 +59,6 @@ def _call_create_coupon(event):
 
 
 def _call_read_coupon(event):
-    if not validate_exists_keys(event['pathParameters'], 'id'):
-        return build_bad_request_response('not_exists_id')
     if not validate_str_values(event['pathParameters'], 'id'):
         return build_bad_request_response('id_invalid_type')
     return read_coupon(
@@ -77,6 +76,10 @@ def _call_delete_coupon(event):
 
 def _call_query_coupons(event):
     return query_coupons()
+
+
+def _has_valid_path_id(event):
+    return 'id' in event['pathParameters'] and type(event['pathParameters']['id']) is str
 
 
 class Test(unittest.TestCase):
@@ -144,44 +147,11 @@ class Test(unittest.TestCase):
         response = lambda_handler({
             'httpMethod': 'GET',
             'pathParameters': {
-                'id': 'id',
+                'id': '0000001',
             },
         }, {})
         self.assertEqual('read_coupon', response)
-        mock_read_coupon.assert_called_once_with('id')
-
-    def test_create_coupon_bad_request(self):
-        self.assertEqual(
-            {
-                'statusCode': 400,
-                'body': {
-                    'message': 'not_exists_key',
-                },
-            },
-            lambda_handler({
-                'httpMethod': 'POST',
-                'body': {},
-            }, {}),
-        )
-        self.assertEqual(
-            {
-                'statusCode': 400,
-                'body': {
-                    'message': 'invalid_type',
-                },
-            },
-            lambda_handler({
-                'httpMethod': 'POST',
-                'body': {
-                    'title': None,
-                    'description': '',
-                    'image': '',
-                    'image_name': '',
-                    'qr_code_image': '',
-                    'qr_code_image_name': '',
-                },
-            }, {}),
-        )
+        mock_read_coupon.assert_called_once_with('0000001')
 
     @mock.patch('lambda_handler.update_coupon')
     def test_update_coupon(self, mock_update_coupon):
@@ -189,7 +159,7 @@ class Test(unittest.TestCase):
         response = lambda_handler({
             'httpMethod': 'PUT',
             'pathParameters': {
-                'id': 1,
+                'id': '0000001',
             },
             'body': {
                 'image': 'image',
@@ -205,7 +175,7 @@ class Test(unittest.TestCase):
         response = lambda_handler({
             'httpMethod': 'DELETE',
             'pathParameters': {
-                'id': 1,
+                'id': '0000001',
             },
         }, {})
         self.assertEqual('delete_coupon', response)
@@ -225,3 +195,17 @@ class Test(unittest.TestCase):
         self.assertEqual('query_coupons', response)
         mock_query_coupons.assert_called_once_with()
 
+    def test_route_not_found(self):
+        self.assertEqual(
+            {
+                'statusCode': 404,
+                'body': {
+                    'message': 'route_not_found',
+                },
+            },
+            lambda_handler({
+                'httpMethod': 'X',
+                'pathParameters': {},
+                'body': {},
+            }, {}),
+        )
