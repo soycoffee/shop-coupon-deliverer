@@ -5,16 +5,24 @@ from unittest.mock import MagicMock
 from dynamodb_atomic_counts import dynamodb_atomic_count
 from dynamodb_coupons import dynamodb_put_coupon, dynamodb_get_coupon
 from s3_coupons import s3_put_coupon_image, s3_generate_coupon_url
+from coupon_validation import validate_coupon
+from error_response import build_bad_request_response
 
 
 def create_coupon(title, description, image, image_name, qr_code_image, qr_code_image_name):
+    coupon = {
+        'title': title,
+        'description': description,
+    }
+    validation_result = validate_coupon(coupon)
+    if validation_result:
+        return build_bad_request_response(*validation_result)
     image_object = s3_put_coupon_image(image, image_name)
     qr_code_image_object = s3_put_coupon_image(qr_code_image, qr_code_image_name)
     _id = str(dynamodb_atomic_count('coupon_id')).zfill(7)
     return dynamodb_put_coupon({
+        **coupon,
         'id': _id,
-        'title': title,
-        'description': description,
         'image_s3_key': image_object.key,
         'qr_code_image_s3_key': qr_code_image_object.key,
     })
@@ -85,6 +93,12 @@ class Test(unittest.TestCase):
             'qr_code_image_s3_key': 'qr_code_image_s3_key',
         })
 
+    def test_create_coupon_bad_request(self):
+        self.assertEqual(
+            {'statusCode': 400, 'body': {'messages': ('invalid.coupon_title_length',)}},
+            create_coupon('', '', '', '', '', ''),
+        )
+
     @mock.patch('coupon_action.dynamodb_get_coupon')
     @mock.patch('coupon_action.s3_generate_coupon_url')
     def test_read_coupon(self, mock_s3_generate_coupon_url, mock_dynamodb_get_coupon):
@@ -99,4 +113,3 @@ class Test(unittest.TestCase):
         }, response)
         mock_dynamodb_get_coupon.assert_called_once_with('id')
         mock_s3_generate_coupon_url.assert_called_once_with('image_s3_key')
-

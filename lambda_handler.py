@@ -2,7 +2,7 @@ import unittest
 
 from unittest import mock
 from coupon_action import create_coupon, read_coupon, update_coupon, delete_coupon, query_coupons
-from request_validation import validate_exists_keys, validate_str_values
+from request_check import check_request_exists_keys, check_request_str_values
 from error_response import build_bad_request_response, build_not_found_response
 
 
@@ -42,10 +42,10 @@ def _match_query_coupons(event):
 
 
 def _call_create_coupon(event):
-    if not validate_exists_keys(event['body'], 'title', 'description', 'image', 'image_name', 'qr_code_image',
+    if not check_request_exists_keys(event['body'], 'title', 'description', 'image', 'image_name', 'qr_code_image',
                                 'qr_code_image_name'):
         return build_bad_request_response('not_exists_key')
-    if not validate_str_values(event['body'], 'title', 'description', 'image', 'image_name', 'qr_code_image',
+    if not check_request_str_values(event['body'], 'title', 'description', 'image', 'image_name', 'qr_code_image',
                                'qr_code_image_name'):
         return build_bad_request_response('invalid_type')
     return create_coupon(
@@ -59,7 +59,7 @@ def _call_create_coupon(event):
 
 
 def _call_read_coupon(event):
-    if not validate_str_values(event['pathParameters'], 'id'):
+    if not check_request_str_values(event['pathParameters'], 'id'):
         return build_bad_request_response('id_invalid_type')
     return read_coupon(
         event['pathParameters']['id'],
@@ -113,7 +113,7 @@ class Test(unittest.TestCase):
             {
                 'statusCode': 400,
                 'body': {
-                    'message': 'not_exists_key',
+                    'messages': ('not_exists_key',),
                 },
             },
             lambda_handler({
@@ -125,7 +125,7 @@ class Test(unittest.TestCase):
             {
                 'statusCode': 400,
                 'body': {
-                    'message': 'invalid_type',
+                    'messages': ('invalid_type',),
                 },
             },
             lambda_handler({
@@ -200,7 +200,7 @@ class Test(unittest.TestCase):
             {
                 'statusCode': 404,
                 'body': {
-                    'message': 'route_not_found',
+                    'messages': ('route_not_found',),
                 },
             },
             lambda_handler({
