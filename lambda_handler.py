@@ -17,7 +17,7 @@ def _route():
         (_match_update_coupon, _call_update_coupon),
         (_match_delete_coupon, _call_delete_coupon),
         (_match_query_coupons, _call_query_coupons),
-        (lambda _: True, lambda _: build_not_found_response('route_not_found'))
+        (lambda _: True, lambda _: build_not_found_response('route_not_found')),
     )
 
 
@@ -91,7 +91,8 @@ def _call_query_coupons(_):
 
 
 def _has_valid_path_id(event):
-    return 'id' in event['pathParameters'] and type(event['pathParameters']['id']) is str
+    return 'pathParameters' in event and type(event['pathParameters']) is dict and 'id' in event['pathParameters']\
+           and type(event['pathParameters']['id']) is str
 
 
 class Test(unittest.TestCase):
@@ -201,7 +202,7 @@ class Test(unittest.TestCase):
         mock_query_coupons.return_value = 'coupons'
         response = lambda_handler({
             'httpMethod': 'GET',
-            'pathParameters': {},
+            'pathParameters': None,
             'body': {
                 'image': 'image',
                 'image_name': 'image_name',
@@ -220,7 +221,6 @@ class Test(unittest.TestCase):
             },
             lambda_handler({
                 'httpMethod': 'X',
-                'pathParameters': {},
                 'body': {},
             }, {}),
         )
