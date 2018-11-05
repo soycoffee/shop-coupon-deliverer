@@ -96,14 +96,14 @@ def _has_valid_path_id(event):
     return (
             'pathParameters' in event
             and type(event['pathParameters']) is dict
-            and 'proxy' in event['pathParameters']
-            and type(event['pathParameters']['proxy']) is str
-            and _ID_PATTERN.fullmatch(event['pathParameters']['proxy'])
+            and 'id' in event['pathParameters']
+            and type(event['pathParameters']['id']) is str
+            and _ID_PATTERN.fullmatch(event['pathParameters']['id'])
     )
 
 
 def _pick_path_id(event):
-    return event['pathParameters']['proxy']
+    return event['pathParameters']['id']
 
 
 class Test(unittest.TestCase):
@@ -151,7 +151,7 @@ class Test(unittest.TestCase):
         mock_read_coupon.return_value = 'coupon'
         response = lambda_handler({
             'httpMethod': 'GET',
-            'pathParameters': {'proxy': '0000001'},
+            'pathParameters': {'id': '0000001'},
         }, {})
         self.assertEqual('coupon', response)
         mock_read_coupon.assert_called_once_with('0000001')
@@ -161,7 +161,7 @@ class Test(unittest.TestCase):
         mock_update_coupon.return_value = 'coupon'
         response = lambda_handler({
             'httpMethod': 'PUT',
-            'pathParameters': {'proxy': '0000001'},
+            'pathParameters': {'id': '0000001'},
             'body': {
                 'title': 'title',
                 'description': 'description',
@@ -178,13 +178,13 @@ class Test(unittest.TestCase):
     def test_update_coupon_bad_request(self):
         self.assertEqual(
             build_bad_request_response('not_exists_key'),
-            lambda_handler({'httpMethod': 'PUT', 'pathParameters': {'proxy': '0000001'}, 'body': {}}, {}),
+            lambda_handler({'httpMethod': 'PUT', 'pathParameters': {'id': '0000001'}, 'body': {}}, {}),
         )
         self.assertEqual(
             build_bad_request_response('invalid_type'),
             lambda_handler({
                 'httpMethod': 'PUT',
-                'pathParameters': {'proxy': '0000001'},
+                'pathParameters': {'id': '0000001'},
                 'body': {
                     'title': None,
                     'description': '',
@@ -201,7 +201,7 @@ class Test(unittest.TestCase):
         mock_delete_coupon.return_value = 'coupon'
         response = lambda_handler({
             'httpMethod': 'DELETE',
-            'pathParameters': {'proxy': '0000001'},
+            'pathParameters': {'id': '0000001'},
         }, {})
         self.assertEqual('coupon', response)
         mock_delete_coupon.assert_called_once_with('0000001')
@@ -230,9 +230,9 @@ class Test(unittest.TestCase):
         )
 
     def test_has_valid_path_id(self):
-        self.assertTrue(_has_valid_path_id({'pathParameters': {'proxy': '0000001'}}))
+        self.assertTrue(_has_valid_path_id({'pathParameters': {'id': '0000001'}}))
         self.assertFalse(_has_valid_path_id({}))
         self.assertFalse(_has_valid_path_id({'pathParameters': None}))
         self.assertFalse(_has_valid_path_id({'pathParameters': {}}))
-        self.assertFalse(_has_valid_path_id({'pathParameters': {'proxy': 1}}))
-        self.assertFalse(_has_valid_path_id({'pathParameters': {'proxy': ''}}))
+        self.assertFalse(_has_valid_path_id({'pathParameters': {'id': 1}}))
+        self.assertFalse(_has_valid_path_id({'pathParameters': {'id': ''}}))
