@@ -97,14 +97,14 @@ def _pick_path_id(event):
 
 
 def _allowed_destructive_action(event):
-    return event['requestContext']['identity']['apiKey'] in ('test-invoke-api-key',)
+    return event['requestContext']['identity']['apiKeyId'] in ('test-invoke-api-key-id', 'wrf7icp2fl')
 
 
 class Test(unittest.TestCase):
 
     @staticmethod
     def _with_test_api_key():
-        return {'requestContext': {'identity': {'apiKey': 'test-invoke-api-key'}}}
+        return {'requestContext': {'identity': {'apiKeyId': 'test-invoke-api-key-id'}}}
 
     @mock.patch('lambda_handler.create_coupon')
     def test_create_coupon(self, mock_create_coupon):
@@ -231,7 +231,7 @@ class Test(unittest.TestCase):
             build_not_found_response('route_not_found'),
             lambda_handler({'httpMethod': 'X', 'body': '{}', **self._with_test_api_key()}, {}),
         )
-        with_denied_api_key = {'requestContext': {'identity': {'apiKey': 'denied'}}}
+        with_denied_api_key = {'requestContext': {'identity': {'apiKeyId': 'denied'}}}
         self.assertEqual(
             build_not_found_response('route_not_found',),
             lambda_handler({'httpMethod': 'POST', 'body': '{}', **with_denied_api_key}, {}),
