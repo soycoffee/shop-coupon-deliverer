@@ -5,14 +5,10 @@ import boto3
 
 def dynamodb_atomic_count(key):
     return _dynamodb_atomic_counts_table().update_item(
-        Key={
-            'key': key,
-        },
+        Key={'key': key},
         UpdateExpression='set current_number = current_number + :increment',
-        ExpressionAttributeValues={
-            ":increment": 1,
-        },
-        ReturnValues="UPDATED_NEW",
+        ExpressionAttributeValues={':increment': 1},
+        ReturnValues='UPDATED_NEW',
     )['Attributes']['current_number']
 
 

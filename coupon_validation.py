@@ -23,7 +23,6 @@ class Test(unittest.TestCase):
             'title': 'title',
             'description': 'description',
         }
-        print(validate_coupon(valid_coupon))
         self.assertEqual((), validate_coupon(valid_coupon))
         self.assertEqual((), validate_coupon({**valid_coupon, 'title': 'x'}))
         self.assertEqual((), validate_coupon({**valid_coupon, 'title': 'x' * 20}))

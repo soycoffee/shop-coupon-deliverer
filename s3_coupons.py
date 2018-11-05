@@ -1,17 +1,16 @@
 import base64
 import functools
-import uuid
 
 import boto3
 
 
-def s3_put_coupon_image(encoded_image, image_name):
-    image_s3_key = _build_s3_key('image', image_name)
+def s3_put_coupon_image(key, encoded_image):
     binary_image = base64.b64decode(encoded_image)
-    return _s3_coupons_bucket().put_object(
-        Key=image_s3_key,
-        Body=binary_image,
-    )
+    return _s3_coupons_bucket().put_object(Key=key, Body=binary_image)
+
+
+def s3_delete_coupon_image(key):
+    return _s3_coupons_bucket().delete_objects(Delete={'Objects': [{'Key': key}]})
 
 
 def s3_generate_coupon_url(key):
@@ -20,14 +19,10 @@ def s3_generate_coupon_url(key):
         HttpMethod='GET',
         ExpiresIn=3600,
         Params={
-            'Bucket': 'shop-coupons-deliverer.coupons',
+            'Bucket': 'shop-coupon-deliverer.coupons',
             'Key': key,
         }
     )
-
-
-def _build_s3_key(directory, name):
-    return f"{directory}/{str(uuid.uuid4())}/{name}"
 
 
 @functools.lru_cache()
@@ -37,5 +32,5 @@ def _s3_client():
 
 @functools.lru_cache()
 def _s3_coupons_bucket():
-    return boto3.resource('s3').Bucket('shop-coupons-deliverer.coupons')
+    return boto3.resource('s3').Bucket('shop-coupon-deliverer.coupons')
 
