@@ -18,7 +18,7 @@ def _build_response(status_code, body):
     return {
         'statusCode': status_code,
         'headers': {},
-        'body': json.dumps(body),
+        'body': json.dumps(body, ensure_ascii=False),
         'isBase64Encoded': False,
     }
 
