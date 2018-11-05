@@ -1,3 +1,4 @@
+import json
 import re
 import unittest
 
@@ -46,20 +47,15 @@ def _match_query_coupons(event):
 
 
 def _call_create_coupon(event):
-    if not check_request_exists_keys(event['body'], 'title', 'description', 'image', 'image_name', 'qr_code_image',
+    body = json.loads(event['body'])
+    if not check_request_exists_keys(body, 'title', 'description', 'image', 'image_name', 'qr_code_image',
                                      'qr_code_image_name'):
         return build_bad_request_response('not_exists_key')
-    if not check_request_str_values(event['body'], 'title', 'description', 'image', 'image_name', 'qr_code_image',
+    if not check_request_str_values(body, 'title', 'description', 'image', 'image_name', 'qr_code_image',
                                     'qr_code_image_name'):
         return build_bad_request_response('invalid_type')
-    return create_coupon(
-        event['body']['title'],
-        event['body']['description'],
-        event['body']['image'],
-        event['body']['image_name'],
-        event['body']['qr_code_image'],
-        event['body']['qr_code_image_name'],
-    )
+    return create_coupon(body['title'], body['description'], body['image'], body['image_name'], body['qr_code_image'],
+                         body['qr_code_image_name'])
 
 
 def _call_read_coupon(event):
@@ -67,21 +63,15 @@ def _call_read_coupon(event):
 
 
 def _call_update_coupon(event):
-    if not check_request_exists_keys(event['body'], 'title', 'description', 'image', 'image_name', 'qr_code_image',
+    body = json.loads(event['body'])
+    if not check_request_exists_keys(body, 'title', 'description', 'image', 'image_name', 'qr_code_image',
                                      'qr_code_image_name'):
         return build_bad_request_response('not_exists_key')
-    if not check_request_str_values(event['body'], 'title', 'description', 'image', 'image_name', 'qr_code_image',
+    if not check_request_str_values(body, 'title', 'description', 'image', 'image_name', 'qr_code_image',
                                     'qr_code_image_name'):
         return build_bad_request_response('invalid_type')
-    return update_coupon(
-        _pick_path_id(event),
-        event['body']['title'],
-        event['body']['description'],
-        event['body']['image'],
-        event['body']['image_name'],
-        event['body']['qr_code_image'],
-        event['body']['qr_code_image_name'],
-    )
+    return update_coupon(_pick_path_id(event), body['title'], body['description'], body['image'], body['image_name'],
+                         body['qr_code_image'], body['qr_code_image_name'])
 
 
 def _call_delete_coupon(event):
@@ -121,14 +111,14 @@ class Test(unittest.TestCase):
         mock_create_coupon.return_value = 'coupon'
         response = lambda_handler({
             'httpMethod': 'POST',
-            'body': {
+            'body': json.dumps({
                 'title': 'title',
                 'description': 'description',
                 'image': 'image',
                 'image_name': 'image_name',
                 'qr_code_image': 'qr_code_image',
                 'qr_code_image_name': 'qr_code_image_name',
-            },
+            }),
             **self._with_test_api_key(),
         }, {})
         self.assertEqual('coupon', response)
@@ -138,20 +128,20 @@ class Test(unittest.TestCase):
     def test_create_coupon_bad_request(self):
         self.assertEqual(
             build_bad_request_response('not_exists_key'),
-            lambda_handler({'httpMethod': 'POST', 'body': {}, **self._with_test_api_key()}, {}),
+            lambda_handler({'httpMethod': 'POST', 'body': '{}', **self._with_test_api_key()}, {}),
         )
         self.assertEqual(
             build_bad_request_response('invalid_type'),
             lambda_handler({
                 'httpMethod': 'POST',
-                'body': {
+                'body': json.dumps({
                     'title': None,
                     'description': '',
                     'image': '',
                     'image_name': '',
                     'qr_code_image': '',
                     'qr_code_image_name': '',
-                },
+                }),
                 **self._with_test_api_key(),
             }, {}),
         )
@@ -173,14 +163,14 @@ class Test(unittest.TestCase):
         response = lambda_handler({
             'httpMethod': 'PUT',
             'pathParameters': {'id': '0000001'},
-            'body': {
+            'body': json.dumps({
                 'title': 'title',
                 'description': 'description',
                 'image': 'image',
                 'image_name': 'image_name',
                 'qr_code_image': 'qr_code_image',
                 'qr_code_image_name': 'qr_code_image_name',
-            },
+            }),
             **self._with_test_api_key(),
         }, {})
         self.assertEqual('coupon', response)
@@ -190,7 +180,7 @@ class Test(unittest.TestCase):
     def test_update_coupon_bad_request(self):
         self.assertEqual(
             build_bad_request_response('not_exists_key'),
-            lambda_handler({'httpMethod': 'PUT', 'pathParameters': {'id': '0000001'}, 'body': {},
+            lambda_handler({'httpMethod': 'PUT', 'pathParameters': {'id': '0000001'}, 'body': '{}',
                             **self._with_test_api_key()}, {}),
         )
         self.assertEqual(
@@ -198,14 +188,14 @@ class Test(unittest.TestCase):
             lambda_handler({
                 'httpMethod': 'PUT',
                 'pathParameters': {'id': '0000001'},
-                'body': {
+                'body': json.dumps({
                     'title': None,
                     'description': '',
                     'image': '',
                     'image_name': '',
                     'qr_code_image': '',
                     'qr_code_image_name': '',
-                },
+                }),
                 **self._with_test_api_key(),
             }, {}),
         )
@@ -227,10 +217,10 @@ class Test(unittest.TestCase):
         response = lambda_handler({
             'httpMethod': 'GET',
             'pathParameters': None,
-            'body': {
+            'body': json.dumps({
                 'image': 'image',
                 'image_name': 'image_name',
-            },
+            }),
             **self._with_test_api_key(),
         }, {})
         self.assertEqual('coupons', response)
@@ -239,21 +229,21 @@ class Test(unittest.TestCase):
     def test_route_not_found(self):
         self.assertEqual(
             build_not_found_response('route_not_found'),
-            lambda_handler({'httpMethod': 'X', 'body': {}, **self._with_test_api_key()}, {}),
+            lambda_handler({'httpMethod': 'X', 'body': '{}', **self._with_test_api_key()}, {}),
         )
         with_denied_api_key = {'requestContext': {'identity': {'apiKey': 'denied'}}}
         self.assertEqual(
             build_not_found_response('route_not_found',),
-            lambda_handler({'httpMethod': 'POST', 'body': {}, **with_denied_api_key}, {}),
+            lambda_handler({'httpMethod': 'POST', 'body': '{}', **with_denied_api_key}, {}),
         )
         self.assertEqual(
             build_not_found_response('route_not_found',),
-            lambda_handler({'httpMethod': 'PUT', 'body': {}, 'pathParameters': {'id': '0000001'},
+            lambda_handler({'httpMethod': 'PUT', 'body': '{}', 'pathParameters': {'id': '0000001'},
                             **with_denied_api_key}, {}),
         )
         self.assertEqual(
             build_not_found_response('route_not_found',),
-            lambda_handler({'httpMethod': 'DELETE', 'body': {}, 'pathParameters': {'id': '0000001'},
+            lambda_handler({'httpMethod': 'DELETE', 'body': '{}', 'pathParameters': {'id': '0000001'},
                             **with_denied_api_key}, {}),
         )
 
