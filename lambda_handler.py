@@ -3,7 +3,7 @@ import unittest
 from unittest import mock
 from coupon_action import create_coupon, read_coupon, update_coupon, delete_coupon, query_coupons
 from request_check import check_request_exists_keys, check_request_str_values
-from error_response import build_bad_request_response, build_not_found_response
+from api_gateway_response import build_bad_request_response, build_not_found_response
 
 
 def lambda_handler(event, context):
@@ -117,11 +117,11 @@ class Test(unittest.TestCase):
 
     def test_create_coupon_bad_request(self):
         self.assertEqual(
-            {'statusCode': 400, 'body': {'messages': ('not_exists_key',)}},
+            build_bad_request_response('not_exists_key'),
             lambda_handler({'httpMethod': 'POST', 'body': {}}, {}),
         )
         self.assertEqual(
-            {'statusCode': 400, 'body': {'messages': ('invalid_type',)}},
+            build_bad_request_response('invalid_type'),
             lambda_handler({
                 'httpMethod': 'POST',
                 'body': {
@@ -166,11 +166,11 @@ class Test(unittest.TestCase):
 
     def test_update_coupon_bad_request(self):
         self.assertEqual(
-            {'statusCode': 400, 'body': {'messages': ('not_exists_key',)}},
+            build_bad_request_response('not_exists_key'),
             lambda_handler({'httpMethod': 'PUT', 'pathParameters': {'id': ''}, 'body': {}}, {}),
         )
         self.assertEqual(
-            {'statusCode': 400, 'body': {'messages': ('invalid_type',)}},
+            build_bad_request_response('invalid_type'),
             lambda_handler({
                 'httpMethod': 'PUT',
                 'pathParameters': {'id': ''},
@@ -213,12 +213,7 @@ class Test(unittest.TestCase):
 
     def test_route_not_found(self):
         self.assertEqual(
-            {
-                'statusCode': 404,
-                'body': {
-                    'messages': ('route_not_found',),
-                },
-            },
+            build_not_found_response('route_not_found',),
             lambda_handler({
                 'httpMethod': 'X',
                 'body': {},
