@@ -12,7 +12,7 @@ def dynamodb_get_coupon(_id):
 
 
 def dynamodb_scan_coupons():
-    return _dynamodb_coupons_table().scan()
+    return _dynamodb_coupons_table().scan(Limit=100)
 
 
 def dynamodb_delete_coupon(_id):
