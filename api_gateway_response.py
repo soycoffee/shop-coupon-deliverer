@@ -2,8 +2,8 @@ import json
 import unittest
 
 
-def build_ok_response(body):
-    return _build_response(200, body)
+def build_ok_response(body, headers=None):
+    return _build_response(200, body, headers)
 
 
 def build_bad_request_response(*messages):
@@ -14,17 +14,17 @@ def build_not_found_response(*messages):
     return _build_error_response(404, messages)
 
 
-def _build_response(status_code, body):
+def _build_response(status_code, body, headers):
     return {
         'statusCode': status_code,
-        'headers': {},
+        'headers': (headers if headers is not None else {}),
         'body': json.dumps(body, ensure_ascii=False),
         'isBase64Encoded': False,
     }
 
 
 def _build_error_response(status_code, messages):
-    return _build_response(status_code, {'messages': messages})
+    return _build_response(status_code, {'messages': messages}, {})
 
 
 class Test(unittest.TestCase):
