@@ -13,7 +13,10 @@ def dynamodb_get_coupon(_id):
 
 
 def dynamodb_query_coupons(page):
-    return _dynamodb_coupons_table().query(KeyConditionExpression=Key('page').eq(page))
+    return _dynamodb_coupons_table().query(
+        IndexName='page-id-index',
+        KeyConditionExpression=Key('page').eq(page),
+    )
 
 
 def dynamodb_delete_coupon(_id):
