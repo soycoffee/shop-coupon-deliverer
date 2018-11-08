@@ -11,6 +11,9 @@ from coupon_validation import validate_coupon
 from api_gateway_response import build_ok_response, build_bad_request_response, build_not_found_response
 
 
+_PAGINATION_COUNT = 20
+
+
 def create_coupon(title, description, image, image_name, qr_code_image, qr_code_image_name):
     return _write_coupon(title, description, image, image_name, qr_code_image, qr_code_image_name,
                          lambda: str(dynamodb_increment_atomic_count('coupon_id')).zfill(7))
@@ -42,7 +45,7 @@ def delete_coupon(_id):
 
 
 def query_coupons(page):
-    last_page = dynamodb_get_atomic_count('coupon_id') // 100
+    last_page = dynamodb_get_atomic_count('coupon_id') // _PAGINATION_COUNT
     return build_ok_response(
         tuple({**coupon, **_with_s3_urls(coupon), **_convert_page_int(coupon)}
               for coupon in dynamodb_query_coupons(page)['Items']),
@@ -61,7 +64,7 @@ def _write_coupon(title, description, image, image_name, qr_code_image, qr_code_
     image_object = s3_put_coupon_image(_make_s3_key('image', image_name), image)
     qr_code_image_object = s3_put_coupon_image(_make_s3_key('qr_code_image', qr_code_image_name), qr_code_image)
     _id = id_provider()
-    page = int(_id[:-2])
+    page = int(_id) // _PAGINATION_COUNT
     dynamodb_put_coupon({
         **coupon,
         'id': _id,
@@ -244,7 +247,7 @@ class Test(unittest.TestCase):
                     'qr_code_image_url': 'qr_code_image_url_1',
                 },
             ),
-            {'last-page': 1},
+            {'last-page': 5},
         ), response)
         mock_dynamodb_query_coupons.assert_called_once_with(0)
         mock_s3_generate_coupon_url.assert_has_calls([mock.call('image_s3_key_0'), mock.call('qr_code_image_s3_key_0'),
