@@ -9,6 +9,7 @@ from api_gateway_response import build_bad_request_response, build_not_found_res
 
 
 _ID_PATTERN = re.compile('\d+')
+_PAGE_PATTERN = re.compile('\d+')
 
 
 def lambda_handler(event, context):
@@ -43,7 +44,7 @@ def _match_delete_coupon(event):
 
 
 def _match_query_coupons(event):
-    return event['httpMethod'] == 'GET'
+    return event['httpMethod'] == 'GET' and _has_valid_query_page(event)
 
 
 def _call_create_coupon(event):
@@ -78,8 +79,11 @@ def _call_delete_coupon(event):
     return delete_coupon(_pick_path_id(event))
 
 
-def _call_query_coupons(_):
-    return query_coupons()
+def _call_query_coupons(event):
+    query_string_parameters = event['queryStringParameters']
+    if not check_request_exists_keys(query_string_parameters, 'page'):
+        return build_bad_request_response('not_exists_query_string_parameter')
+    return query_coupons(int(query_string_parameters['page']))
 
 
 def _has_valid_path_id(event):
@@ -89,6 +93,15 @@ def _has_valid_path_id(event):
             and 'id' in event['pathParameters']
             and type(event['pathParameters']['id']) is str
             and _ID_PATTERN.fullmatch(event['pathParameters']['id'])
+    )
+
+
+def _has_valid_query_page(event):
+    return (
+            'queryStringParameters' in event
+            and type(event['queryStringParameters']) is dict
+            and 'page' in event['queryStringParameters']
+            and _PAGE_PATTERN.fullmatch(event['queryStringParameters']['page'])
     )
 
 
@@ -157,7 +170,6 @@ class Test(unittest.TestCase):
         response = lambda_handler({
             'httpMethod': 'GET',
             'pathParameters': {'id': '0000001'},
-            **self._with_test_api_key_id(),
         }, {})
         self.assertEqual('coupon', response)
         mock_read_coupon.assert_called_once_with('0000001')
@@ -222,14 +234,14 @@ class Test(unittest.TestCase):
         response = lambda_handler({
             'httpMethod': 'GET',
             'pathParameters': None,
+            'queryStringParameters': {'page': '0'},
             'body': json.dumps({
                 'image': 'image',
                 'image_name': 'image_name',
             }),
-            **self._with_test_api_key_id(),
         }, {})
         self.assertEqual('coupons', response)
-        mock_query_coupons.assert_called_once_with()
+        mock_query_coupons.assert_called_once_with(0)
 
     def test_route_not_found(self):
         self.assertEqual(
@@ -244,6 +256,13 @@ class Test(unittest.TestCase):
         self.assertFalse(_has_valid_path_id({'pathParameters': {}}))
         self.assertFalse(_has_valid_path_id({'pathParameters': {'id': 1}}))
         self.assertFalse(_has_valid_path_id({'pathParameters': {'id': ''}}))
+
+    def test_has_valid_query_page(self):
+        self.assertTrue(_has_valid_query_page({'queryStringParameters': {'page': '0'}}))
+        self.assertFalse(_has_valid_query_page({}))
+        self.assertFalse(_has_valid_query_page({'queryStringParameters': None}))
+        self.assertFalse(_has_valid_query_page({'queryStringParameters': {}}))
+        self.assertFalse(_has_valid_query_page({'queryStringParameters': {'page': ''}}))
 
     @mock.patch('lambda_handler._call_create_coupon')
     @mock.patch('lambda_handler._call_update_coupon')

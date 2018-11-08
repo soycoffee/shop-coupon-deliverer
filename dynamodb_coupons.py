@@ -1,6 +1,7 @@
 import functools
 
 import boto3
+from boto3.dynamodb.conditions import Key
 
 
 def dynamodb_put_coupon(item):
@@ -11,8 +12,8 @@ def dynamodb_get_coupon(_id):
     return _dynamodb_coupons_table().get_item(Key={'id': _id})
 
 
-def dynamodb_scan_coupons():
-    return _dynamodb_coupons_table().scan(Limit=100)
+def dynamodb_query_coupons(page):
+    return _dynamodb_coupons_table().query(KeyConditionExpression=Key('page').eq(page))
 
 
 def dynamodb_delete_coupon(_id):
