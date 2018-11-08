@@ -4,16 +4,16 @@ import boto3
 
 
 def dynamodb_increment_atomic_count(key):
-    return _dynamodb_atomic_counts_table().update_item(
+    return int(_dynamodb_atomic_counts_table().update_item(
         Key={'key': key},
         UpdateExpression='set current_number = current_number + :increment',
         ExpressionAttributeValues={':increment': 1},
         ReturnValues='UPDATED_NEW',
-    )['Attributes']['current_number']
+    )['Attributes']['current_number'])
 
 
 def dynamodb_get_atomic_count(key):
-    return _dynamodb_atomic_counts_table().get_item(Key={'key': key})['Item']['current_number']
+    return int(_dynamodb_atomic_counts_table().get_item(Key={'key': key})['Item']['current_number'])
 
 
 @functools.lru_cache()
