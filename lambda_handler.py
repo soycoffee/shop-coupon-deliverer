@@ -49,14 +49,11 @@ def _match_query_coupons(event):
 
 def _call_create_coupon(event):
     body = json.loads(event['body'])
-    if not check_request_exists_keys(body, 'title', 'description', 'image', 'image_name', 'qr_code_image',
-                                     'qr_code_image_name'):
+    if not check_request_exists_keys(body, 'title', 'description', 'image', 'qr_code_image'):
         return build_bad_request_response('not_exists_key')
-    if not check_request_str_values(body, 'title', 'description', 'image', 'image_name', 'qr_code_image',
-                                    'qr_code_image_name'):
+    if not check_request_str_values(body, 'title', 'description', 'image', 'qr_code_image'):
         return build_bad_request_response('invalid_type')
-    return create_coupon(body['title'], body['description'], body['image'], body['image_name'], body['qr_code_image'],
-                         body['qr_code_image_name'])
+    return create_coupon(body['title'], body['description'], body['image'], body['qr_code_image'])
 
 
 def _call_read_coupon(event):
@@ -65,14 +62,11 @@ def _call_read_coupon(event):
 
 def _call_update_coupon(event):
     body = json.loads(event['body'])
-    if not check_request_exists_keys(body, 'title', 'description', 'image', 'image_name', 'qr_code_image',
-                                     'qr_code_image_name'):
+    if not check_request_exists_keys(body, 'title', 'description', 'image', 'qr_code_image'):
         return build_bad_request_response('not_exists_key')
-    if not check_request_str_values(body, 'title', 'description', 'image', 'image_name', 'qr_code_image',
-                                    'qr_code_image_name'):
+    if not check_request_str_values(body, 'title', 'description', 'image', 'qr_code_image'):
         return build_bad_request_response('invalid_type')
-    return update_coupon(_pick_path_id(event), body['title'], body['description'], body['image'], body['image_name'],
-                         body['qr_code_image'], body['qr_code_image_name'])
+    return update_coupon(_pick_path_id(event), body['title'], body['description'], body['image'], body['qr_code_image'])
 
 
 def _call_delete_coupon(event):
@@ -133,15 +127,12 @@ class Test(unittest.TestCase):
                 'title': 'title',
                 'description': 'description',
                 'image': 'image',
-                'image_name': 'image_name',
                 'qr_code_image': 'qr_code_image',
-                'qr_code_image_name': 'qr_code_image_name',
             }),
             **self._with_test_api_key_id(),
         }, {})
         self.assertEqual('coupon', response)
-        mock_create_coupon.assert_called_once_with('title', 'description', 'image', 'image_name', 'qr_code_image',
-                                                   'qr_code_image_name')
+        mock_create_coupon.assert_called_once_with('title', 'description', 'image', 'qr_code_image')
 
     def test_create_coupon_bad_request(self):
         self.assertEqual(
@@ -156,9 +147,7 @@ class Test(unittest.TestCase):
                     'title': None,
                     'description': '',
                     'image': '',
-                    'image_name': '',
                     'qr_code_image': '',
-                    'qr_code_image_name': '',
                 }),
                 **self._with_test_api_key_id(),
             }, {}),
@@ -184,15 +173,12 @@ class Test(unittest.TestCase):
                 'title': 'title',
                 'description': 'description',
                 'image': 'image',
-                'image_name': 'image_name',
                 'qr_code_image': 'qr_code_image',
-                'qr_code_image_name': 'qr_code_image_name',
             }),
             **self._with_test_api_key_id(),
         }, {})
         self.assertEqual('coupon', response)
-        mock_update_coupon.assert_called_once_with('0000001', 'title', 'description', 'image', 'image_name',
-                                                   'qr_code_image', 'qr_code_image_name')
+        mock_update_coupon.assert_called_once_with('0000001', 'title', 'description', 'image', 'qr_code_image')
 
     def test_update_coupon_bad_request(self):
         self.assertEqual(
@@ -209,9 +195,7 @@ class Test(unittest.TestCase):
                     'title': None,
                     'description': '',
                     'image': '',
-                    'image_name': '',
                     'qr_code_image': '',
-                    'qr_code_image_name': '',
                 }),
                 **self._with_test_api_key_id(),
             }, {}),
@@ -237,7 +221,6 @@ class Test(unittest.TestCase):
             'queryStringParameters': {'page': '0'},
             'body': json.dumps({
                 'image': 'image',
-                'image_name': 'image_name',
             }),
         }, {})
         self.assertEqual('coupons', response)
