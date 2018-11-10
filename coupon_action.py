@@ -24,7 +24,7 @@ def read_coupon(_id):
     if 'Item' not in coupon_get_result:
         return build_not_found_response('coupon_not_found')
     coupon = coupon_get_result['Item']
-    return build_ok_response({**coupon, **_with_s3_urls(coupon), **_convert_page_int(coupon)})
+    return build_ok_response({**coupon, **_with_s3_urls(coupon)})
 
 
 def update_coupon(_id, title, description, image, qr_code_image):
@@ -50,11 +50,11 @@ def delete_coupon(_id):
     return build_ok_response(None)
 
 
-def query_coupons(page):
+def query_coupons(last_key):
     last_page = _id_to_page(dynamodb_get_atomic_count('coupon_id'))
     return build_ok_response(
         tuple({**coupon, **_with_s3_urls(coupon), **_convert_page_int(coupon)}
-              for coupon in dynamodb_query_coupons(page)['Items']),
+              for coupon in dynamodb_query_coupons(last_key)['Items']),
         {'last-page': last_page},
     )
 
