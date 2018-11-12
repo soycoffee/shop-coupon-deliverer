@@ -4,9 +4,9 @@ import functools
 import boto3
 
 
-def s3_put_coupon_image(key, encoded_image):
-    binary_image = base64.b64decode(encoded_image)
-    return _s3_coupons_bucket().put_object(Key=key, Body=binary_image)
+def s3_put_coupon_image(key, body, content_type):
+    binary_image = base64.b64decode(body)
+    return _s3_coupons_bucket().put_object(Key=key, Body=binary_image, ContentType=content_type)
 
 
 def s3_delete_coupon_image(key):

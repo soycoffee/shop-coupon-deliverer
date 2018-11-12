@@ -70,8 +70,15 @@ def _write_coupon(title, description, image, qr_code_image, id_provider):
     validation_result = validate_coupon(coupon)
     if validation_result:
         return build_bad_request_response(*validation_result)
-    image_object = s3_put_coupon_image(_make_s3_key('image'), image)
-    qr_code_image_object = s3_put_coupon_image(_make_s3_key('qr_code_image'), qr_code_image)
+    (image_mime_type, image_body) = _extract_data_url(image)
+    if image_mime_type is None or image_body is None:
+        return build_bad_request_response('invalid.image')
+    (qr_code_image_mime_type, qr_code_image_body) = _extract_data_url(qr_code_image)
+    if qr_code_image_mime_type is None or qr_code_image_body is None:
+        return build_bad_request_response('invalid.qr_code_image')
+    image_object = s3_put_coupon_image(_make_s3_key('image'), image_body, image_mime_type)
+    qr_code_image_object = s3_put_coupon_image(_make_s3_key('qr_code_image'), qr_code_image_body,
+                                               qr_code_image_mime_type)
     _id = id_provider()
     dynamodb_put_coupon({
         **coupon,
@@ -81,6 +88,15 @@ def _write_coupon(title, description, image, qr_code_image, id_provider):
     })
     result_coupon = dynamodb_get_coupon(_id)['Item']
     return build_ok_response(result_coupon)
+
+
+def _extract_data_url(source):
+    colon_index = source.find(':')
+    semicolon_index = source.find(';')
+    comma_index = source.find(',')
+    mime_type = source[(colon_index + 1):semicolon_index] if colon_index != -1 and semicolon_index != -1 else None
+    encoded_image = source[(comma_index + 1):] if comma_index != -1 else None
+    return mime_type, encoded_image
 
 
 def _make_s3_key(directory):
@@ -107,11 +123,12 @@ class Test(unittest.TestCase):
         mock_s3_put_coupon_image.side_effect = [MagicMock(key='image_s3_key'), MagicMock(key='qr_code_image_s3_key')]
         mock_dynamodb_increment_atomic_count.return_value = 1
         mock_dynamodb_get_coupon.return_value = {'Item': {'id': '0000001'}}
-        response = create_coupon('title', 'description', 'image', 'qr_code_image')
+        response = create_coupon('title', 'description', 'data:image/png;base64,image',
+                                 'data:image/png;base64,qr_code_image')
         self.assertEqual(build_ok_response({'id': '0000001'}), response)
         mock_s3_put_coupon_image.assert_has_calls([
-            mock.call('image/fixed_uuid', 'image'),
-            mock.call('qr_code_image/fixed_uuid', 'qr_code_image'),
+            mock.call('image/fixed_uuid', 'image', 'image/png'),
+            mock.call('qr_code_image/fixed_uuid', 'qr_code_image', 'image/png'),
         ])
         mock_dynamodb_increment_atomic_count.assert_called_once_with('coupon_id')
         mock_dynamodb_put_coupon.assert_called_once_with({
@@ -123,10 +140,20 @@ class Test(unittest.TestCase):
         })
         mock_dynamodb_get_coupon.assert_called_once_with('0000001')
 
-    def test_create_coupon_bad_request(self):
+    def test_create_coupon_validation(self):
         self.assertEqual(
             build_bad_request_response('invalid.coupon_title_length'),
             create_coupon('', '', '', ''),
+        )
+
+    def test_create_coupon_invalid_image(self):
+        self.assertEqual(
+            build_bad_request_response('invalid.image'),
+            create_coupon('title', '', 'invalid', 'data:image/png;base64,qr_code_image'),
+        )
+        self.assertEqual(
+            build_bad_request_response('invalid.qr_code_image'),
+            create_coupon('title', '', 'data:image/png;base64,qr_code_image', ''),
         )
 
     @mock.patch('coupon_action.dynamodb_get_coupon')
@@ -167,15 +194,16 @@ class Test(unittest.TestCase):
             'image_s3_key': 'image_s3_key',
             'qr_code_image_s3_key': 'qr_code_image_s3_key',
         }}
-        response = update_coupon('0000001', 'title', 'description', 'image', 'qr_code_image')
+        response = update_coupon('0000001', 'title', 'description', 'data:image/png;base64,image',
+                                 'data:image/png;base64,qr_code_image')
         self.assertEqual(build_ok_response({
             'id': '0000001',
             'image_s3_key': 'image_s3_key',
             'qr_code_image_s3_key': 'qr_code_image_s3_key',
         }), response)
         mock_s3_put_coupon_image.assert_has_calls([
-            mock.call('image/fixed_uuid', 'image'),
-            mock.call('qr_code_image/fixed_uuid', 'qr_code_image'),
+            mock.call('image/fixed_uuid', 'image', 'image/png'),
+            mock.call('qr_code_image/fixed_uuid', 'qr_code_image', 'image/png'),
         ])
         mock_dynamodb_put_coupon.assert_called_once_with({
             'id': '0000001',
@@ -188,20 +216,30 @@ class Test(unittest.TestCase):
         mock_s3_delete_coupon_image.assert_has_calls([mock.call('image_s3_key'), mock.call('qr_code_image_s3_key')])
 
     @mock.patch('coupon_action.dynamodb_get_coupon')
+    def test_update_coupon_validation(self, mock_dynamodb_get_coupon):
+        mock_dynamodb_get_coupon.return_value = {'Item': 'coupon'}
+        response = update_coupon('', '', '', '', '')
+        self.assertEqual(build_bad_request_response('invalid.coupon_title_length'), response)
+        mock_dynamodb_get_coupon.assert_called_once_with('')
+
+    @mock.patch('coupon_action.dynamodb_get_coupon')
+    def test_update_coupon_invalid_image(self, mock_dynamodb_get_coupon):
+        mock_dynamodb_get_coupon.return_value = {'Item': 'coupon'}
+        self.assertEqual(
+            build_bad_request_response('invalid.image'),
+            create_coupon('title', '', 'invalid', 'data:image/png;base64,qr_code_image'),
+        )
+        self.assertEqual(
+            build_bad_request_response('invalid.qr_code_image'),
+            create_coupon('title', '', 'data:image/png;base64,qr_code_image', ''),
+        )
+
+    @mock.patch('coupon_action.dynamodb_get_coupon')
     def test_update_coupon_not_found(self, mock_dynamodb_get_coupon):
         mock_dynamodb_get_coupon.return_value = {}
         response = update_coupon('0000001', '', '', '', '')
         self.assertEqual(build_not_found_response('coupon_not_found'), response)
         mock_dynamodb_get_coupon.assert_called_once_with('0000001')
-
-    @mock.patch('coupon_action.dynamodb_get_coupon')
-    @mock.patch('coupon_action.uuid.uuid4')
-    def test_update_coupon_bad_request(self, mock_uuid4, mock_dynamodb_get_coupon):
-        mock_dynamodb_get_coupon.return_value = {'Item': 'coupon'}
-        response = update_coupon('', '', '', '', '')
-        self.assertEqual(build_bad_request_response('invalid.coupon_title_length'), response)
-        mock_dynamodb_get_coupon.assert_called_once_with('')
-        mock_uuid4.assert_not_called()
 
     @mock.patch('coupon_action.dynamodb_delete_coupon')
     @mock.patch('coupon_action.dynamodb_get_coupon')
@@ -269,3 +307,10 @@ class Test(unittest.TestCase):
         response = query_coupons(None)
         self.assertEqual(build_ok_response(()), response)
         mock_dynamodb_query_coupons.assert_called_once_with(None)
+
+    def test_extract_data_url(self):
+        self.assertEqual(('image/png', 'foo'), _extract_data_url('data:image/png;base64,foo'))
+        self.assertEqual((None, 'foo'), _extract_data_url('image/png;base64,foo'))
+        self.assertEqual((None, 'foo'), _extract_data_url('data:base64,foo'))
+        self.assertEqual(('image/png', None), _extract_data_url('data:image/png;foo'))
+        self.assertEqual((None, None), _extract_data_url('foo'))
