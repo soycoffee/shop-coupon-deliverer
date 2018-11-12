@@ -1,5 +1,5 @@
+import json
 import uuid
-from decimal import Decimal
 import unittest
 from unittest import mock
 from unittest.mock import MagicMock
@@ -20,18 +20,18 @@ def create_coupon(title, description, image, qr_code_image):
 
 
 def read_coupon(_id):
-    coupon_get_result = dynamodb_get_coupon(_id)
-    if 'Item' not in coupon_get_result:
+    get_coupon_result = dynamodb_get_coupon(_id)
+    if 'Item' not in get_coupon_result:
         return build_not_found_response('coupon_not_found')
-    coupon = coupon_get_result['Item']
+    coupon = get_coupon_result['Item']
     return build_ok_response({**coupon, **_with_s3_urls(coupon)})
 
 
 def update_coupon(_id, title, description, image, qr_code_image):
-    coupon_get_result = dynamodb_get_coupon(_id)
-    if 'Item' not in coupon_get_result:
+    get_coupon_result = dynamodb_get_coupon(_id)
+    if 'Item' not in get_coupon_result:
         return build_not_found_response('coupon_not_found')
-    old_coupon = coupon_get_result['Item']
+    old_coupon = get_coupon_result['Item']
     response = _write_coupon(title, description, image, qr_code_image, lambda: _id)
     if response['statusCode'] == 200:
         s3_delete_coupon_image(old_coupon['image_s3_key'])
@@ -40,20 +40,25 @@ def update_coupon(_id, title, description, image, qr_code_image):
 
 
 def delete_coupon(_id):
-    coupon_get_result = dynamodb_get_coupon(_id)
-    if 'Item' not in coupon_get_result:
+    get_coupon_result = dynamodb_get_coupon(_id)
+    if 'Item' not in get_coupon_result:
         return build_not_found_response('coupon_not_found')
-    coupon = coupon_get_result['Item']
+    coupon = get_coupon_result['Item']
     dynamodb_delete_coupon(coupon['id'])
     s3_delete_coupon_image(coupon['image_s3_key'])
     s3_delete_coupon_image(coupon['qr_code_image_s3_key'])
     return build_ok_response(None)
 
 
-def query_coupons(last_key):
+def query_coupons(last_evaluated_key):
+    query_coupons_result = dynamodb_query_coupons(last_evaluated_key)
     return build_ok_response(
-        tuple({**coupon, **_with_s3_urls(coupon), **_convert_page_int(coupon)}
-              for coupon in dynamodb_query_coupons(last_key)['Items']),
+        tuple({**coupon, **_with_s3_urls(coupon)}
+              for coupon in query_coupons_result['Items']),
+        {
+            **({'Last-Evaluated-Key': json.dumps(query_coupons_result['LastEvaluatedKey'])}
+               if 'LastEvaluatedKey' in query_coupons_result else {})
+        },
     )
 
 
@@ -68,16 +73,14 @@ def _write_coupon(title, description, image, qr_code_image, id_provider):
     image_object = s3_put_coupon_image(_make_s3_key('image'), image)
     qr_code_image_object = s3_put_coupon_image(_make_s3_key('qr_code_image'), qr_code_image)
     _id = id_provider()
-    page = _id_to_page(_id)
     dynamodb_put_coupon({
         **coupon,
         'id': _id,
         'image_s3_key': image_object.key,
         'qr_code_image_s3_key': qr_code_image_object.key,
-        'page': page,
     })
     result_coupon = dynamodb_get_coupon(_id)['Item']
-    return build_ok_response({**result_coupon, **_convert_page_int(result_coupon)})
+    return build_ok_response(result_coupon)
 
 
 def _make_s3_key(directory):
@@ -89,14 +92,6 @@ def _with_s3_urls(coupon):
         'image_url': s3_generate_coupon_url(coupon['image_s3_key']),
         'qr_code_image_url': s3_generate_coupon_url(coupon['qr_code_image_s3_key']),
     }
-
-
-def _convert_page_int(coupon):
-    return {'page': int(coupon['page'])}
-
-
-def _id_to_page(_id):
-    return ((int(_id) - 1) // _PAGINATION_COUNT) + 1
 
 
 class Test(unittest.TestCase):
@@ -111,9 +106,9 @@ class Test(unittest.TestCase):
         mock_uuid4.return_value = 'fixed_uuid'
         mock_s3_put_coupon_image.side_effect = [MagicMock(key='image_s3_key'), MagicMock(key='qr_code_image_s3_key')]
         mock_dynamodb_increment_atomic_count.return_value = 1
-        mock_dynamodb_get_coupon.return_value = {'Item': {'id': '0000001', 'page': Decimal(1)}}
+        mock_dynamodb_get_coupon.return_value = {'Item': {'id': '0000001'}}
         response = create_coupon('title', 'description', 'image', 'qr_code_image')
-        self.assertEqual(build_ok_response({'id': '0000001', 'page': 1}), response)
+        self.assertEqual(build_ok_response({'id': '0000001'}), response)
         mock_s3_put_coupon_image.assert_has_calls([
             mock.call('image/fixed_uuid', 'image'),
             mock.call('qr_code_image/fixed_uuid', 'qr_code_image'),
@@ -125,7 +120,6 @@ class Test(unittest.TestCase):
             'description': 'description',
             'image_s3_key': 'image_s3_key',
             'qr_code_image_s3_key': 'qr_code_image_s3_key',
-            'page': 1,
         })
         mock_dynamodb_get_coupon.assert_called_once_with('0000001')
 
@@ -139,14 +133,13 @@ class Test(unittest.TestCase):
     @mock.patch('coupon_action.s3_generate_coupon_url')
     def test_read_coupon(self, mock_s3_generate_coupon_url, mock_dynamodb_get_coupon):
         mock_dynamodb_get_coupon.return_value = {
-            'Item': {'image_s3_key': 'image_s3_key', 'qr_code_image_s3_key': 'qr_code_image_s3_key', 'page': Decimal(0)}
+            'Item': {'image_s3_key': 'image_s3_key', 'qr_code_image_s3_key': 'qr_code_image_s3_key'}
         }
         mock_s3_generate_coupon_url.side_effect = ['image_url', 'qr_code_image_url']
         response = read_coupon('id')
         self.assertEqual(build_ok_response({
             'image_s3_key': 'image_s3_key',
             'qr_code_image_s3_key': 'qr_code_image_s3_key',
-            'page': 0,
             'image_url': 'image_url',
             'qr_code_image_url': 'qr_code_image_url',
         }), response)
@@ -171,14 +164,12 @@ class Test(unittest.TestCase):
         mock_s3_put_coupon_image.side_effect = [MagicMock(key='image_s3_key'), MagicMock(key='qr_code_image_s3_key')]
         mock_dynamodb_get_coupon.return_value = {'Item': {
             'id': '0000001',
-            'page': Decimal(1),
             'image_s3_key': 'image_s3_key',
             'qr_code_image_s3_key': 'qr_code_image_s3_key',
         }}
         response = update_coupon('0000001', 'title', 'description', 'image', 'qr_code_image')
         self.assertEqual(build_ok_response({
             'id': '0000001',
-            'page': 1,
             'image_s3_key': 'image_s3_key',
             'qr_code_image_s3_key': 'qr_code_image_s3_key',
         }), response)
@@ -192,7 +183,6 @@ class Test(unittest.TestCase):
             'description': 'description',
             'image_s3_key': 'image_s3_key',
             'qr_code_image_s3_key': 'qr_code_image_s3_key',
-            'page': 1,
         })
         mock_dynamodb_get_coupon.assert_has_calls([mock.call('0000001'), mock.call('0000001')])
         mock_s3_delete_coupon_image.assert_has_calls([mock.call('image_s3_key'), mock.call('qr_code_image_s3_key')])
@@ -234,52 +224,48 @@ class Test(unittest.TestCase):
         mock_dynamodb_get_coupon.assert_called_once_with('0000001')
 
     @mock.patch('coupon_action.dynamodb_query_coupons')
-    @mock.patch('coupon_action.dynamodb_get_atomic_count')
     @mock.patch('coupon_action.s3_generate_coupon_url')
-    def test_query_coupons(self, mock_s3_generate_coupon_url, mock_dynamodb_get_atomic_count,
-                           mock_dynamodb_query_coupons):
+    def test_query_coupons(self, mock_s3_generate_coupon_url, mock_dynamodb_query_coupons):
         mock_dynamodb_query_coupons.return_value = {
             'Items': [
                 {
                     'image_s3_key': 'image_s3_key_0',
                     'qr_code_image_s3_key': 'qr_code_image_s3_key_0',
-                    'page': Decimal(0),
                 },
                 {
                     'image_s3_key': 'image_s3_key_1',
                     'qr_code_image_s3_key': 'qr_code_image_s3_key_1',
-                    'page': Decimal(1),
                 },
             ],
+            'LastEvaluatedKey': {'key': 'value'},
         }
-        mock_dynamodb_get_atomic_count.return_value = 2
         mock_s3_generate_coupon_url.side_effect = ['image_url_0', 'qr_code_image_url_0', 'image_url_1',
                                                    'qr_code_image_url_1']
-        response = query_coupons(0)
+        response = query_coupons('lastKey')
         self.assertEqual(build_ok_response(
             (
                 {
                     'image_s3_key': 'image_s3_key_0',
                     'qr_code_image_s3_key': 'qr_code_image_s3_key_0',
-                    'page': 0,
                     'image_url': 'image_url_0',
                     'qr_code_image_url': 'qr_code_image_url_0',
                 },
                 {
                     'image_s3_key': 'image_s3_key_1',
                     'qr_code_image_s3_key': 'qr_code_image_s3_key_1',
-                    'page': 1,
                     'image_url': 'image_url_1',
                     'qr_code_image_url': 'qr_code_image_url_1',
                 },
             ),
-            {'last-page': 1},
+            {'Last-Evaluated-Key': '{"key": "value"}'},
         ), response)
-        mock_dynamodb_query_coupons.assert_called_once_with(0)
+        mock_dynamodb_query_coupons.assert_called_once_with('lastKey')
         mock_s3_generate_coupon_url.assert_has_calls([mock.call('image_s3_key_0'), mock.call('qr_code_image_s3_key_0'),
                                                       mock.call('image_s3_key_1'), mock.call('qr_code_image_s3_key_1')])
 
-    def test_id_to_page(self):
-        self.assertEqual(1, _id_to_page("0000001"))
-        self.assertEqual(1, _id_to_page("0000020"))
-        self.assertEqual(2, _id_to_page("0000021"))
+    @mock.patch('coupon_action.dynamodb_query_coupons')
+    def test_query_coupons_no_last_evaluated_key(self, mock_dynamodb_query_coupons):
+        mock_dynamodb_query_coupons.return_value = {'Items': []}
+        response = query_coupons(None)
+        self.assertEqual(build_ok_response(()), response)
+        mock_dynamodb_query_coupons.assert_called_once_with(None)
