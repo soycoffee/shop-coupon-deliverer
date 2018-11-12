@@ -4,7 +4,7 @@ import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
-from dynamodb_atomic_counts import dynamodb_increment_atomic_count, dynamodb_get_atomic_count
+from dynamodb_atomic_counts import dynamodb_increment_atomic_count
 from dynamodb_coupons import dynamodb_put_coupon, dynamodb_get_coupon, dynamodb_query_coupons, dynamodb_delete_coupon
 from s3_coupons import s3_put_coupon_image, s3_delete_coupon_image, s3_generate_coupon_url
 from coupon_validation import validate_coupon
@@ -51,11 +51,9 @@ def delete_coupon(_id):
 
 
 def query_coupons(last_key):
-    last_page = _id_to_page(dynamodb_get_atomic_count('coupon_id'))
     return build_ok_response(
         tuple({**coupon, **_with_s3_urls(coupon), **_convert_page_int(coupon)}
               for coupon in dynamodb_query_coupons(last_key)['Items']),
-        {'last-page': last_page},
     )
 
 

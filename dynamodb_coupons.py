@@ -41,15 +41,25 @@ class Test(unittest.TestCase):
 
     @mock.patch('dynamodb_coupons._dynamodb_coupons_table')
     def test_dynamodb_put_coupon(self, mock_dynamodb_coupons_table):
-        mock.patch()
-        mock_put_item = MagicMock()
-        mock_dynamodb_coupons_table.configure_mock(put_item=mock_put_item)
+        mock_dynamodb_coupons_table.return_value = MagicMock(put_item=MagicMock())
         dynamodb_put_coupon({'key': 'value'})
-        mock_put_item.assert_called_once_with({})
+        mock_dynamodb_coupons_table().put_item.assert_called_once_with(Item={'key': 'value', 'fixed_key': 'fixed_key'})
 
-    # @mock.patch('dynamodb_coupons._dynamodb_coupons_table')
-    # def test_dynamodb_put_coupon(self, mock_dynamodb_coupons_table):
-    #     mock_put_item = MagicMock()
-    #     mock_dynamodb_coupons_table.configure_mock(put_item=mock_put_item)
-    #     dynamodb_put_coupon({'key': 'value'})
-    #     mock_put_item.assert_called_once_with({})
+    @mock.patch('dynamodb_coupons._dynamodb_coupons_table')
+    def test_dynamodb_query_coupons(self, mock_dynamodb_coupons_table):
+        mock_dynamodb_coupons_table.return_value = MagicMock(query=MagicMock())
+        dynamodb_query_coupons({'key': 'value'})
+        dynamodb_query_coupons(None)
+        mock_dynamodb_coupons_table().query.assert_has_calls([
+            mock.call(
+                IndexName='fixed_key-id-index',
+                KeyConditionExpression=Key('fixed_key').eq(_FIXED_KEY_VALUE),
+                Limit=_QUERY_LIMIT,
+                ExclusiveStartKey={'key': 'value'},
+            ),
+            mock.call(
+                IndexName='fixed_key-id-index',
+                KeyConditionExpression=Key('fixed_key').eq(_FIXED_KEY_VALUE),
+                Limit=_QUERY_LIMIT,
+            ),
+        ])
