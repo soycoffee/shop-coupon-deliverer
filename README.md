@@ -36,8 +36,8 @@ API Gateway からアクセスする。
   }
 ]
 ```
-最大20件のクーポンを返す。
-21件目以降の取得には `Last-Evaluated-Key` を利用する。
+最大20件のクーポンを返す。  
+21件目以降の取得には `Last-Evaluated-Key` を利用する。  
 
 ## Read Coupon
 
@@ -76,7 +76,7 @@ API Gateway からアクセスする。
 #### Response Body (Example)
 ```json
 {
-  "id": "0000009",
+  "id": "0000001",
   "title": "全商品 10% OFF！",
   "description": "ご利用一回限り。他のクーポンとの併用はできません。クーポンをご利用いただいた場合、ポイントはつきません。",
   "image_s3_key": "image/19afcda7-0ac6-49b6-8327-b8fb9adb277f",
