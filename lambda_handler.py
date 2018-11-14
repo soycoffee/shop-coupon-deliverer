@@ -96,9 +96,12 @@ def _pick_path_id(event):
 def _allowed_destructive_action(event):
     api_key_id = event['requestContext']['identity']['apiKeyId']
     return (
-            ('stageVariables' in event and 'administratorApiKeyId' in event['stageVariables']
-             and api_key_id == event['stageVariables']['administratorApiKeyId'])
-            or api_key_id == 'test-invoke-api-key-id'
+            api_key_id == 'test-invoke-api-key-id'
+            or (
+                    'stageVariables' in event
+                    and 'administratorApiKeyId' in event['stageVariables']
+                    and api_key_id == event['stageVariables']['administratorApiKeyId']
+            )
     )
 
 
