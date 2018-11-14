@@ -75,7 +75,8 @@ def _call_delete_coupon(event):
 def _call_query_coupons(event):
     headers = event['headers']
     return query_coupons(
-        json.loads(headers['Last-Evaluated-Key']) if 'Last-Evaluated-Key' in headers else None,
+        json.loads(headers['Last-Evaluated-Key']) if type(headers) is dict and 'Last-Evaluated-Key' in headers
+        else None,
     )
 
 
@@ -91,6 +92,14 @@ def _has_valid_path_id(event):
 
 def _pick_path_id(event):
     return event['pathParameters']['id']
+
+
+def _extract_last_evaluated_key(event):
+    headers = event['headers']
+    if type(headers) is dict and 'Last-Evaluated-Key' in headers:
+        return json.loads(headers['Last-Evaluated-Key'])
+    else:
+        return None
 
 
 def _allowed_destructive_action(event):
