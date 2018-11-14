@@ -87,7 +87,7 @@ def _write_coupon(title, description, image, qr_code_image, id_provider):
         'qr_code_image_s3_key': qr_code_image_object.key,
     })
     result_coupon = dynamodb_get_coupon(_id)['Item']
-    return build_ok_response(result_coupon)
+    return build_ok_response(_delete_fixed_key(result_coupon))
 
 
 def _extract_data_url(source):
@@ -127,7 +127,7 @@ class Test(unittest.TestCase):
         mock_uuid4.return_value = 'fixed_uuid'
         mock_s3_put_coupon_image.side_effect = [MagicMock(key='image_s3_key'), MagicMock(key='qr_code_image_s3_key')]
         mock_dynamodb_increment_atomic_count.return_value = 1
-        mock_dynamodb_get_coupon.return_value = {'Item': {'id': '0000001'}}
+        mock_dynamodb_get_coupon.return_value = {'Item': {'id': '0000001', 'fixed_key': ''}}
         response = create_coupon('title', 'description', 'data:image/png;base64,image',
                                  'data:image/png;base64,qr_code_image')
         self.assertEqual(build_ok_response({'id': '0000001'}), response)
@@ -198,6 +198,7 @@ class Test(unittest.TestCase):
             'id': '0000001',
             'image_s3_key': 'image_s3_key',
             'qr_code_image_s3_key': 'qr_code_image_s3_key',
+            'fixed_key': '',
         }}
         response = update_coupon('0000001', 'title', 'description', 'data:image/png;base64,image',
                                  'data:image/png;base64,qr_code_image')
