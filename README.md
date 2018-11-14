@@ -1,3 +1,7 @@
+# システム構成図
+
+[INFRASTRUCTURE_DIAGRAM.png](INFRASTRUCTURE_DIAGRAM.png)
+
 # Base URL
 
 https://3h4ksa28ci.execute-api.ap-northeast-1.amazonaws.com/default
