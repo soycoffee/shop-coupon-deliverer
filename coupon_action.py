@@ -24,7 +24,7 @@ def read_coupon(_id):
     if 'Item' not in get_coupon_result:
         return build_not_found_response('coupon_not_found')
     coupon = get_coupon_result['Item']
-    return build_ok_response({**coupon, **_with_s3_urls(coupon)})
+    return build_ok_response({**_delete_fixed_key(coupon), **_with_s3_urls(coupon)})
 
 
 def update_coupon(_id, title, description, image, qr_code_image):
@@ -53,7 +53,7 @@ def delete_coupon(_id):
 def query_coupons(last_evaluated_key):
     query_coupons_result = dynamodb_query_coupons(last_evaluated_key)
     return build_ok_response(
-        tuple({**coupon, **_with_s3_urls(coupon)}
+        tuple({**_delete_fixed_key(coupon), **_with_s3_urls(coupon)}
               for coupon in query_coupons_result['Items']),
         {
             **({'Last-Evaluated-Key': json.dumps(query_coupons_result['LastEvaluatedKey'])}
@@ -110,6 +110,11 @@ def _with_s3_urls(coupon):
     }
 
 
+def _delete_fixed_key(coupon):
+    del coupon['fixed_key']
+    return coupon
+
+
 class Test(unittest.TestCase):
 
     @mock.patch('coupon_action.dynamodb_put_coupon')
@@ -160,7 +165,7 @@ class Test(unittest.TestCase):
     @mock.patch('coupon_action.s3_generate_coupon_url')
     def test_read_coupon(self, mock_s3_generate_coupon_url, mock_dynamodb_get_coupon):
         mock_dynamodb_get_coupon.return_value = {
-            'Item': {'image_s3_key': 'image_s3_key', 'qr_code_image_s3_key': 'qr_code_image_s3_key'}
+            'Item': {'image_s3_key': 'image_s3_key', 'qr_code_image_s3_key': 'qr_code_image_s3_key', 'fixed_key': ''}
         }
         mock_s3_generate_coupon_url.side_effect = ['image_url', 'qr_code_image_url']
         response = read_coupon('id')
@@ -269,10 +274,12 @@ class Test(unittest.TestCase):
                 {
                     'image_s3_key': 'image_s3_key_0',
                     'qr_code_image_s3_key': 'qr_code_image_s3_key_0',
+                    'fixed_key': '',
                 },
                 {
                     'image_s3_key': 'image_s3_key_1',
                     'qr_code_image_s3_key': 'qr_code_image_s3_key_1',
+                    'fixed_key': '',
                 },
             ],
             'LastEvaluatedKey': {'key': 'value'},
